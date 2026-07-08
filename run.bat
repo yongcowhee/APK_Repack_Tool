@@ -136,23 +136,16 @@ echo Launching Repack Tool...
 echo ---------------------------------------------------
 
 set "REPACK_JAR=%~dp0tools\repack\RepackApk.jar"
-set "REPACK_JAR_B64=%~dp0tools\repack\RepackApk.jar.b64"
 set "BUNDLED_JAVA=%~dp0tools\java\bin\java.exe"
 
 if not exist "%REPACK_JAR%" (
-    certutil -decode "%REPACK_JAR_B64%" "%REPACK_JAR%" >nul
-    if errorlevel 1 (
-        echo [ERROR] Failed to prepare RepackApk.jar via certutil.
-        pause
-        exit /b 1
-    )
+    echo [ERROR] RepackApk.jar not found: %REPACK_JAR%
+    pause
+    exit /b 1
 )
 
-if exist "%BUNDLED_JAVA%" (
-    set "JAVA_EXE=%BUNDLED_JAVA%"
-) else (
-    set "JAVA_EXE=java"
-)
+set "JAVA_EXE=java"
+if exist "%BUNDLED_JAVA%" set "JAVA_EXE=%BUNDLED_JAVA%"
 
 "%JAVA_EXE%" -jar "%REPACK_JAR%" --input "%IN_APK%" --output "%OUT_APK%" --package "%NEW_PKG%" --versionCode "%V_CODE%" --versionName "%V_NAME%" --minSdk "%MIN_SDK%" --targetSdk "%TARGET_SDK%" --maxSdk "%MAX_SDK%" --scriptRoot "%~dp0" %FULL_SMALI%
 
