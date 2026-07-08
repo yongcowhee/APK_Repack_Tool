@@ -103,7 +103,7 @@ set "FULL_SMALI="
 set "SMALI_TEXT=Skip"
 set /p "DO_SMALI=- Full Smali Rename? (Y/N): "
 if /i "%DO_SMALI%"=="Y" (
-    set "FULL_SMALI=-FullSmali"
+    set "FULL_SMALI=--fullSmali"
     set "SMALI_TEXT=Run"
 )
 
@@ -132,12 +132,29 @@ goto CONFIRM_CHOICE
 
 :START_EXECUTION
 echo.
-echo Launching PowerShell Script...
+echo Launching Repack Tool...
 echo ---------------------------------------------------
 
-set "REPACK_SCRIPT=%~dp0repack_apk_standalone.ps1"
+set "REPACK_JAR=%~dp0tools\repack\RepackApk.jar"
+set "REPACK_JAR_B64=%~dp0tools\repack\RepackApk.jar.b64"
+set "BUNDLED_JAVA=%~dp0tools\java\bin\java.exe"
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%REPACK_SCRIPT%" -InputApk "%IN_APK%" -OutputApk "%OUT_APK%" -NewPackage "%NEW_PKG%" -VersionCode "%V_CODE%" -VersionName "%V_NAME%" -MinSdk "%MIN_SDK%" -TargetSdk "%TARGET_SDK%" -MaxSdk "%MAX_SDK%" %FULL_SMALI%
+if not exist "%REPACK_JAR%" (
+    certutil -decode "%REPACK_JAR_B64%" "%REPACK_JAR%" >nul
+    if errorlevel 1 (
+        echo [ERROR] Failed to prepare RepackApk.jar via certutil.
+        pause
+        exit /b 1
+    )
+)
+
+if exist "%BUNDLED_JAVA%" (
+    set "JAVA_EXE=%BUNDLED_JAVA%"
+) else (
+    set "JAVA_EXE=java"
+)
+
+"%JAVA_EXE%" -jar "%REPACK_JAR%" --input "%IN_APK%" --output "%OUT_APK%" --package "%NEW_PKG%" --versionCode "%V_CODE%" --versionName "%V_NAME%" --minSdk "%MIN_SDK%" --targetSdk "%TARGET_SDK%" --maxSdk "%MAX_SDK%" --scriptRoot "%~dp0" %FULL_SMALI%
 
 echo.
 echo ---------------------------------------------------

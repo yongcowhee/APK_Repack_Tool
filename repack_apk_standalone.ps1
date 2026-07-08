@@ -22,10 +22,19 @@ function Resolve-ToolPath([string]$Path) {
     if ([string]::IsNullOrWhiteSpace($Path)) {
         return $null
     }
-    if ([System.IO.Path]::IsPathRooted($Path)) {
+    if (Split-Path -Path $Path -IsAbsolute) {
         return $Path
     }
-    return [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot $Path))
+    return Join-Path $PSScriptRoot $Path
+}
+
+function Get-FullPathSafe([string]$Path) {
+    # [System.IO.Path]::GetFullPath()가 ConstrainedLanguage 모드에서 차단되는 환경을 위한 대체 함수
+    if (Split-Path -Path $Path -IsAbsolute) {
+        return $Path
+    }
+    $base = (Get-Location).Path
+    return Join-Path $base $Path
 }
 
 function Invoke-Checked([string[]]$Command, [string[]]$MaskValues = @()) {
@@ -233,8 +242,8 @@ function Replace-InTree([string]$Root, [string]$OldPackage, [string]$NewPackage)
 }
 
 function Move-SmaliPackageDirs([string]$DecodedDir, [string]$OldPackage, [string]$NewPackage) {
-    $oldRel = $OldPackage.Replace(".", [System.IO.Path]::DirectorySeparatorChar)
-    $newRel = $NewPackage.Replace(".", [System.IO.Path]::DirectorySeparatorChar)
+    $oldRel = $OldPackage.Replace(".", "\")
+    $newRel = $NewPackage.Replace(".", "\")
     $moves = 0
 
     Get-ChildItem -LiteralPath $DecodedDir -Directory -Filter "smali*" | ForEach-Object {
@@ -276,7 +285,7 @@ if (-not [string]::IsNullOrWhiteSpace($MaxSdk) -and $MaxSdk -ne "null") {
 if ([string]::IsNullOrWhiteSpace($InputApk)) {
     throw "[ERROR] Input APK path is empty."
 }
-$inputPath = [System.IO.Path]::GetFullPath($InputApk)
+$inputPath = Get-FullPathSafe $InputApk
 if (-not (Test-Path -LiteralPath $inputPath -PathType Leaf)) {
     throw "Input APK not found: $inputPath"
 }
@@ -286,16 +295,20 @@ if ([string]::IsNullOrWhiteSpace($OutputApk)) {
 }
 
 # 디렉토리 경로가 없으면(파일명만 입력된 경우) input apk와 동일한 디렉토리를 기본 경로로 사용한다.
-$outDir = [System.IO.Path]::GetDirectoryName($OutputApk)
+$outDir = Split-Path -Path $OutputApk -Parent
 if ([string]::IsNullOrWhiteSpace($outDir)) {
     $outputPath = Join-Path (Split-Path -Parent $inputPath) $OutputApk
 } else {
-    $outputPath = [System.IO.Path]::GetFullPath($OutputApk)
+    $outputPath = Get-FullPathSafe $OutputApk
 }
 
 # 확장자가 .apk가 아니면(미지정 포함) .apk로 강제 적용한다.
-if ([System.IO.Path]::GetExtension($outputPath) -ne ".apk") {
-    $outputPath = [System.IO.Path]::ChangeExtension($outputPath, "apk")
+if ($outputPath -match '\.[^\.\\/]+$') {
+    if ($matches[0] -ne ".apk") {
+        $outputPath = $outputPath -replace '\.[^\.\\/]+$', '.apk'
+    }
+} else {
+    $outputPath = $outputPath + ".apk"
 }
 
 $java = Resolve-ToolPath "tools\java\bin\java.exe"
@@ -340,10 +353,10 @@ if (-not [string]::IsNullOrWhiteSpace($keystoreConfigPath) -and (Test-Path -Lite
                        (-not [string]::IsNullOrWhiteSpace($cfgKeyPass))
 
     if ($configComplete) {
-        if ([System.IO.Path]::IsPathRooted($cfgKeystorePath)) {
+        if (Split-Path -Path $cfgKeystorePath -IsAbsolute) {
             $keystore = $cfgKeystorePath
         } else {
-            $keystore = [System.IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $keystoreConfigPath) $cfgKeystorePath))
+            $keystore = Join-Path (Split-Path -Parent $keystoreConfigPath) $cfgKeystorePath
         }
         $keyAlias = $cfgKeyAlias
         $storePass = $cfgStorePass
@@ -377,9 +390,9 @@ foreach ($required in @($apktoolJar, $apksignerJar, $zipalign, $keystore)) {
 }
 
 if ([string]::IsNullOrWhiteSpace($WorkDir)) {
-    $workRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("repack_apk_" + [System.Guid]::NewGuid().ToString("N"))
+    $workRoot = Join-Path $env:TEMP ("repack_apk_" + [System.Guid]::NewGuid().ToString("N"))
 } else {
-    $workRoot = [System.IO.Path]::GetFullPath($WorkDir)
+    $workRoot = Get-FullPathSafe $WorkDir
 }
 
 $decodedDir = Join-Path $workRoot "decoded"
