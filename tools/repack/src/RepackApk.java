@@ -470,20 +470,20 @@ public class RepackApk {
             text = replaceYmlField(text, "  versionName:", versionName, "versionName");
         }
         if (!isBlankOrNull(minSdk)) {
-            text = replaceYmlField(text, "    minSdkVersion:", minSdk, "minSdkVersion");
+            text = setSdkInfoField(text, "minSdkVersion", minSdk);
         }
         if (!isBlank(targetSdk)) {
             if ("null".equalsIgnoreCase(targetSdk.trim())) {
                 text = removeYmlSdkField(text, "targetSdkVersion");
             } else {
-                text = replaceOrAddSdkInfoField(text, "targetSdkVersion", targetSdk);
+                text = setSdkInfoField(text, "targetSdkVersion", targetSdk);
             }
         }
         if (!isBlank(maxSdk)) {
             if ("null".equalsIgnoreCase(maxSdk.trim())) {
                 text = removeYmlSdkField(text, "maxSdkVersion");
             } else {
-                text = replaceOrAddSdkInfoField(text, "maxSdkVersion", maxSdk);
+                text = setSdkInfoField(text, "maxSdkVersion", maxSdk);
             }
         }
 
@@ -501,21 +501,29 @@ public class RepackApk {
         return text;
     }
 
-    static String replaceOrAddSdkInfoField(String text, String fieldName, String value) {
-        Pattern fieldPat = Pattern.compile("(?m)^    " + Pattern.quote(fieldName) + ":\\s*.*$");
+    // sdkInfo 하위 필드(minSdkVersion/targetSdkVersion/maxSdkVersion)는 apktool.yml 실제 포맷상
+    // 2-space 들여쓰기가 맞다 (sdkInfo: 자체는 0-indent 최상위 키). 필드가 있으면 갱신, 없으면
+    // sdkInfo 섹션에 추가, sdkInfo 섹션 자체가 없으면 섹션째로 새로 만든다.
+    static String setSdkInfoField(String text, String fieldName, String value) {
+        Pattern fieldPat = Pattern.compile("(?m)^  " + Pattern.quote(fieldName) + ":\\s*.*$");
         Matcher m = fieldPat.matcher(text);
         if (m.find()) {
-            String replaced = m.replaceAll(Matcher.quoteReplacement("    " + fieldName + ": " + value));
+            String replaced = m.replaceAll(Matcher.quoteReplacement("  " + fieldName + ": " + value));
             System.out.println("-> apktool.yml: Updated " + fieldName + " to " + value);
             return replaced;
         }
-        Pattern sdkInfoPat = Pattern.compile("(?m)^  sdkInfo:\\s*$");
+
+        Pattern sdkInfoPat = Pattern.compile("(?m)^sdkInfo:\\s*$");
         Matcher m2 = sdkInfoPat.matcher(text);
         if (m2.find()) {
-            String replaced = m2.replaceAll(Matcher.quoteReplacement("  sdkInfo:\n    " + fieldName + ": " + value));
-            System.out.println("-> apktool.yml: Added and Updated " + fieldName + " to " + value);
+            String replaced = m2.replaceAll(Matcher.quoteReplacement("sdkInfo:\n  " + fieldName + ": " + value));
+            System.out.println("-> apktool.yml: Added " + fieldName + " to " + value);
             return replaced;
         }
+
+        // sdkInfo 섹션 자체가 없음 -> 섹션째로 새로 생성
+        text = rtrim(text) + "\nsdkInfo:\n  " + fieldName + ": " + value + "\n";
+        System.out.println("-> apktool.yml: Created sdkInfo section with " + fieldName + " = " + value);
         return text;
     }
 
@@ -523,7 +531,7 @@ public class RepackApk {
         // apktool은 매니페스트에 해당 속성이 없으면 apktool.yml에 그 키 자체를 만들지 않는다.
         // "null" 텍스트로 값만 지우는 방식은 aapt2가 프레임워크 기본값으로 채워넣는 부작용이 있어,
         // 줄 자체를 완전히 제거해 apktool의 원래 "속성 없음" 상태와 동일하게 맞춘다.
-        Pattern pat = Pattern.compile("(?m)^    " + Pattern.quote(fieldName) + ":\\s*.*$\\r?\\n?");
+        Pattern pat = Pattern.compile("(?m)^  " + Pattern.quote(fieldName) + ":\\s*.*$\\r?\\n?");
         Matcher m = pat.matcher(text);
         if (m.find()) {
             String replaced = m.replaceAll("");
