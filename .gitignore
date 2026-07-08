@@ -1,4 +1,6 @@
 tools/keystore/keystore.config
 tools/keystore/*.jks
 tools/keystore/*.enc
-tools/repack/RepackApk.jar
+tools/repack/RepackApk.jar.b64
+.DS_Store
+**/.DS_Store
