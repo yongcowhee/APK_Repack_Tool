@@ -28,11 +28,24 @@ function Resolve-ToolPath([string]$Path) {
     return [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot $Path))
 }
 
-function Invoke-Checked([string[]]$Command) {
+function Invoke-Checked([string[]]$Command, [string[]]$MaskValues = @()) {
     if ($null -eq $Command -or $Command.Count -eq 0) {
         throw "Command array is null or empty"
     }
-    Write-Host ("$ " + ($Command -join " "))
+
+    $displayCommand = $Command
+    if ($MaskValues.Count -gt 0) {
+        $displayCommand = $Command | ForEach-Object {
+            $item = $_
+            foreach ($m in $MaskValues) {
+                if (-not [string]::IsNullOrEmpty($m) -and $item -eq $m) {
+                    $item = "****"
+                }
+            }
+            $item
+        }
+    }
+    Write-Host ("$ " + ($displayCommand -join " "))
     
     $exe = $Command[0]
     $argsList = $Command[1..($Command.Count - 1)]
@@ -77,7 +90,7 @@ function Update-ManifestMetadata([string]$ManifestPath, [string]$VersionCode, [s
     $hasVCode = (-not [string]::IsNullOrWhiteSpace($VersionCode)) -and ($VersionCode -ne "null")
     $hasVName = (-not [string]::IsNullOrWhiteSpace($VersionName)) -and ($VersionName -ne "null")
     $hasMin   = (-not [string]::IsNullOrWhiteSpace($MinSdk)) -and ($MinSdk -ne "null")
-    $hasTarget = (-not [string]::IsNullOrWhiteSpace($TargetSdk)) -and ($TargetSdk -ne "null")
+    $hasTarget = (-not [string]::IsNullOrWhiteSpace($TargetSdk))
     $hasMax   = (-not [string]::IsNullOrWhiteSpace($MaxSdk))
 
     if ($hasVCode) {
@@ -108,9 +121,17 @@ function Update-ManifestMetadata([string]$ManifestPath, [string]$VersionCode, [s
             $modified = $true
         }
         if ($hasTarget) {
-            $usesSdkNode.SetAttribute("targetSdkVersion", $nsUri, $TargetSdk)
-            Write-Host "-> Manifest: Updated targetSdkVersion to $TargetSdk"
-            $modified = $true
+            if ($TargetSdk -eq "null") {
+                if ($usesSdkNode.HasAttribute("targetSdkVersion", $nsUri)) {
+                    $usesSdkNode.RemoveAttribute("targetSdkVersion", $nsUri)
+                    Write-Host "-> Manifest: Removed targetSdkVersion attribute"
+                    $modified = $true
+                }
+            } else {
+                $usesSdkNode.SetAttribute("targetSdkVersion", $nsUri, $TargetSdk)
+                Write-Host "-> Manifest: Updated targetSdkVersion to $TargetSdk"
+                $modified = $true
+            }
         }
         if ($hasMax) {
             if ($MaxSdk -eq "null") {
@@ -163,10 +184,16 @@ function Update-ApktoolYml([string]$YmlPath, [string]$NewPackage, [string]$Versi
             Write-Host "-> apktool.yml: Updated minSdkVersion to $MinSdk"
         }
     }
-    if (-not [string]::IsNullOrWhiteSpace($TargetSdk) -and ($TargetSdk -ne "null")) {
+    if (-not [string]::IsNullOrWhiteSpace($TargetSdk)) {
+        $targetVal = if ($TargetSdk -eq "null") { "null" } else { $TargetSdk }
         if ($text -match '(?m)^    targetSdkVersion:\s*.*$') {
-            $text = $text -replace '(?m)^    targetSdkVersion:\s*.*$', "    targetSdkVersion: $TargetSdk"
-            Write-Host "-> apktool.yml: Updated targetSdkVersion to $TargetSdk"
+            $text = $text -replace '(?m)^    targetSdkVersion:\s*.*$', "    targetSdkVersion: $targetVal"
+            Write-Host "-> apktool.yml: Updated targetSdkVersion to $targetVal"
+        } else {
+            if ($text -match '(?m)^  sdkInfo:\s*$') {
+                $text = $text -replace '(?m)^  sdkInfo:\s*$', "  sdkInfo:`n    targetSdkVersion: $targetVal"
+                Write-Host "-> apktool.yml: Added and Updated targetSdkVersion to $targetVal"
+            }
         }
     }
     if (-not [string]::IsNullOrWhiteSpace($MaxSdk)) {
@@ -257,7 +284,19 @@ if (-not (Test-Path -LiteralPath $inputPath -PathType Leaf)) {
 if ([string]::IsNullOrWhiteSpace($OutputApk)) {
     throw "[ERROR] Output APK path is empty."
 }
-$outputPath = [System.IO.Path]::GetFullPath($OutputApk)
+
+# 디렉토리 경로가 없으면(파일명만 입력된 경우) input apk와 동일한 디렉토리를 기본 경로로 사용한다.
+$outDir = [System.IO.Path]::GetDirectoryName($OutputApk)
+if ([string]::IsNullOrWhiteSpace($outDir)) {
+    $outputPath = Join-Path (Split-Path -Parent $inputPath) $OutputApk
+} else {
+    $outputPath = [System.IO.Path]::GetFullPath($OutputApk)
+}
+
+# 확장자가 .apk가 아니면(미지정 포함) .apk로 강제 적용한다.
+if ([System.IO.Path]::GetExtension($outputPath) -ne ".apk") {
+    $outputPath = [System.IO.Path]::ChangeExtension($outputPath, "apk")
+}
 
 $java = Resolve-ToolPath "tools\java\bin\java.exe"
 if ([string]::IsNullOrWhiteSpace($java) -or -not (Test-Path -LiteralPath $java -PathType Leaf)) {
@@ -269,7 +308,64 @@ $javaArgs = @("-Xmx3g", "-jar")
 $apktoolJar = Resolve-ToolPath "tools\apktool\apktool.jar"
 $apksignerJar = Resolve-ToolPath "tools\build-tools\lib\apksigner.jar"
 $zipalign = Resolve-ToolPath "tools\build-tools\zipalign.exe"
-$keystore = Resolve-ToolPath "tools\keystore\debug.keystore"
+
+# 서명 키 결정: keystore.config가 존재하고 값이 채워져 있으면 해당 키 사용, 아니면 기본 debug 키로 폴백
+$keystoreConfigPath = Resolve-ToolPath "tools\keystore\keystore.config"
+$keystore = $null
+$keyAlias = $null
+$storePass = $null
+$keyPass = $null
+
+if (-not [string]::IsNullOrWhiteSpace($keystoreConfigPath) -and (Test-Path -LiteralPath $keystoreConfigPath -PathType Leaf)) {
+    $configValues = @{}
+    Get-Content -LiteralPath $keystoreConfigPath -Encoding UTF8 | ForEach-Object {
+        $line = $_.Trim()
+        if ($line -eq "" -or $line.StartsWith("#")) { return }
+        $idx = $line.IndexOf("=")
+        if ($idx -gt 0) {
+            $key = $line.Substring(0, $idx).Trim()
+            $val = $line.Substring($idx + 1).Trim()
+            $configValues[$key] = $val
+        }
+    }
+
+    $cfgKeystorePath = $configValues["KeystorePath"]
+    $cfgKeyAlias = $configValues["KeyAlias"]
+    $cfgStorePass = $configValues["StorePassword"]
+    $cfgKeyPass = $configValues["KeyPassword"]
+
+    $configComplete = (-not [string]::IsNullOrWhiteSpace($cfgKeystorePath)) -and
+                       (-not [string]::IsNullOrWhiteSpace($cfgKeyAlias)) -and
+                       (-not [string]::IsNullOrWhiteSpace($cfgStorePass)) -and
+                       (-not [string]::IsNullOrWhiteSpace($cfgKeyPass))
+
+    if ($configComplete) {
+        if ([System.IO.Path]::IsPathRooted($cfgKeystorePath)) {
+            $keystore = $cfgKeystorePath
+        } else {
+            $keystore = [System.IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $keystoreConfigPath) $cfgKeystorePath))
+        }
+        $keyAlias = $cfgKeyAlias
+        $storePass = $cfgStorePass
+        $keyPass = $cfgKeyPass
+
+        if (-not (Test-Path -LiteralPath $keystore -PathType Leaf)) {
+            throw "keystore.config에 지정된 키 파일을 찾을 수 없습니다: $keystore"
+        }
+        Write-Host "-> Signing: keystore.config에 등록된 서명 키를 사용합니다. (alias=$keyAlias)"
+    } else {
+        Write-Host "-> [WARNING] keystore.config가 존재하지만 필수 값이 비어 있어 기본 debug 키로 폴백합니다."
+    }
+} else {
+    Write-Host "-> [WARNING] keystore.config가 없어 기본 debug 키로 서명합니다. 스토어 업로드용 APK에는 사용할 수 없습니다."
+}
+
+if ($null -eq $keystore) {
+    $keystore = Resolve-ToolPath "tools\keystore\debug.keystore"
+    $keyAlias = "androiddebugkey"
+    $storePass = "android"
+    $keyPass = "android"
+}
 
 foreach ($required in @($apktoolJar, $apksignerJar, $zipalign, $keystore)) {
     if ([string]::IsNullOrWhiteSpace($required)) {
@@ -351,11 +447,11 @@ try {
         "--v2-signing-enabled", "true",
         "--v3-signing-enabled", "true",
         "--ks", $keystore,
-        "--ks-pass", "pass:android",
-        "--key-pass", "pass:android",
-        "--ks-key-alias", "androiddebugkey",
+        "--ks-pass", "pass:$storePass",
+        "--key-pass", "pass:$keyPass",
+        "--ks-key-alias", $keyAlias,
         $outputPath
-    )
+    ) -MaskValues @("pass:$storePass", "pass:$keyPass")
 
     Invoke-Checked @($java, $javaArgs[0], $javaArgs[1], $apksignerJar, "verify", "--verbose", $outputPath)
 

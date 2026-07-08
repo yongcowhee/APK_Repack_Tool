@@ -1,0 +1,3 @@
+tools/keystore/keystore.config
+tools/keystore/*.jks
+tools/keystore/*.enc
