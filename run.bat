@@ -5,13 +5,13 @@ set QM=^"
 :REPACK_LOOP
 cls
 echo ===================================================
-echo   🌼Android APK Repack Tool v3.0🌼
+echo   *** Android APK Repack Tool v3.0 ***
 echo.
 echo   [Released] 26. 07. 09
-echo   [Developer] Sohee Yong ✌️
+echo   [Developer] Sohee Yong
 echo ===================================================
 echo.
-echo ❓How to Use
+echo # How to Use
 echo This tool asks for the values below one by one. Type the value and press Enter.
 echo Optional fields can be skipped by pressing Enter alone; the Input APK's original value is kept.
 echo.
