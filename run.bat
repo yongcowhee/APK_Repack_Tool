@@ -6,17 +6,22 @@ cls
 echo ===================================================
 echo   🌼Android APK Repack Tool v3.0🌼
 echo.
-echo   [Released] 260709
+echo   [Released] 26. 07. 09
 echo   [Developer] Sohee Yong ✌️
 echo ===================================================
+echo.
 echo ❓How to Use
+echo This tool asks for the values below one by one. Type the value and press Enter.
+echo Optional fields can be skipped by pressing Enter alone; the Input APK's original value is kept.
+echo.
 echo.
 echo [Required]
 echo    [Input APK Path]  :  Path to the original APK you want to modify
 echo                         ex) C:\Users\Documents\Binary\sample.apk
+echo.
 echo    [Output APK Path] :  Option 1) Full path and filename for the new APK (.apk extension is added automatically)
 echo                         ex) C:\Users\repack_test
-echo                         Option 2) Filename only -> saved in the same folder as the Input APK (.apk extension is added automatically)
+echo                         Option 2) Filename only ^-> saved in the same folder as the Input APK (.apk extension is added automatically)
 echo                         ex) repack_test
 echo.
 echo [Optional]
@@ -24,15 +29,14 @@ echo    [New Package Name]  [Version Code]  [Version Name]  [Min SDK]  [Target S
 echo.
 echo    [Note] Leaving an optional field empty keeps the Input APK's original value.
 echo       ex) If the Input APK's Min/Target/Max are 33/33/null, entering the values below results in 33/33/35.
-echo            > Min SDK     :
-echo            > Target SDK  :
-echo            > Max SDK     : 35
+echo            ^> Min SDK     :
+echo            ^> Target SDK  :
+echo            ^> Max SDK     : 35
 echo.
 echo [Y/N Options]
-echo    [Smali]    :  Whether to rewrite the internal package structure -> N is fine in most cases
-echo    [Proceed]  :  Shows all entered values before running -> N cancels and lets you re-enter
+echo    [Smali]    :  Whether to rewrite the internal package structure ^-> N is fine in most cases
+echo    [Proceed]  :  Shows all entered values before running ^-> N cancels and lets you re-enter
 echo ===================================================
-
 
 :INPUT_APK
 set "IN_APK="

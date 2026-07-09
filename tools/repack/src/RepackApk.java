@@ -120,12 +120,18 @@ public class RepackApk {
         File unsignedApk = new File(workRoot, "unsigned.apk");
         File alignedApk = new File(workRoot, "aligned.apk");
 
+        // decode/build steps handle large resources, so give them a generous heap (default assumes 16GB machine).
+        // sign/verify are lightweight, so a small heap is enough.
+        // ExitOnOutOfMemoryError: on OOM, exit immediately with a clear error instead of hanging or the window just closing.
+        String[] buildHeapArgs = {"-Xmx8g", "-XX:+ExitOnOutOfMemoryError"};
+        String[] signHeapArgs = {"-Xmx1g", "-XX:+ExitOnOutOfMemoryError"};
+
         try {
             if (workRoot.exists()) deleteRecursive(workRoot);
             workRoot.mkdirs();
 
-            runChecked(javaCmd, "-Xmx3g", "-jar", apktoolJar.getAbsolutePath(),
-                    "d", "-f", inputFile.getAbsolutePath(), "-o", decodedDir.getAbsolutePath());
+            runChecked(concat(new String[]{javaCmd}, buildHeapArgs, new String[]{"-jar", apktoolJar.getAbsolutePath(),
+                    "d", "-f", inputFile.getAbsolutePath(), "-o", decodedDir.getAbsolutePath()}));
 
             File manifestFile = new File(decodedDir, "AndroidManifest.xml");
             File ymlFile = new File(decodedDir, "apktool.yml");
@@ -158,8 +164,8 @@ public class RepackApk {
             }
 
             if (unsignedApk.exists()) unsignedApk.delete();
-            runChecked(javaCmd, "-Xmx3g", "-jar", apktoolJar.getAbsolutePath(),
-                    "b", decodedDir.getAbsolutePath(), "-o", unsignedApk.getAbsolutePath());
+            runChecked(concat(new String[]{javaCmd}, buildHeapArgs, new String[]{"-jar", apktoolJar.getAbsolutePath(),
+                    "b", decodedDir.getAbsolutePath(), "-o", unsignedApk.getAbsolutePath()}));
 
             if (alignedApk.exists()) alignedApk.delete();
             runChecked(zipalign.getAbsolutePath(), "-f", "4",
@@ -170,19 +176,17 @@ public class RepackApk {
             if (outputFile.exists()) outputFile.delete();
             Files.copy(alignedApk.toPath(), outputFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
-            runCheckedMasked(new String[]{
-                    javaCmd, "-Xmx3g", "-jar", apksignerJar.getAbsolutePath(), "sign",
+            runCheckedMasked(concat(new String[]{javaCmd}, signHeapArgs, new String[]{"-jar", apksignerJar.getAbsolutePath(), "sign",
                     "--v2-signing-enabled", "true",
                     "--v3-signing-enabled", "true",
                     "--ks", keystorePath,
                     "--ks-pass", "pass:" + storePass,
                     "--key-pass", "pass:" + keyPass,
                     "--ks-key-alias", keyAlias,
-                    outputFile.getAbsolutePath()
-            }, new String[]{"pass:" + storePass, "pass:" + keyPass});
+                    outputFile.getAbsolutePath()}), new String[]{"pass:" + storePass, "pass:" + keyPass});
 
-            runChecked(javaCmd, "-Xmx3g", "-jar", apksignerJar.getAbsolutePath(),
-                    "verify", "--verbose", outputFile.getAbsolutePath());
+            runChecked(concat(new String[]{javaCmd}, signHeapArgs, new String[]{"-jar", apksignerJar.getAbsolutePath(),
+                    "verify", "--verbose", outputFile.getAbsolutePath()}));
 
             System.out.println("Done: " + outputFile.getAbsolutePath());
             if (keepTemp) {
@@ -633,6 +637,19 @@ public class RepackApk {
             fail("Command failed with exit code " + exitCode + ": " + command[0]);
         }
     }
+
+    static String[] concat(String[]... arrays) {
+    int total = 0;
+    for (String[] a : arrays) total += a.length;
+    String[] result = new String[total];
+    int pos = 0;
+    for (String[] a : arrays) {
+    System.arraycopy(a, 0, result, pos, a.length);
+    pos += a.length;
+    }
+    return result;
+    }
+
 
     static void deleteRecursive(File f) {
         if (f == null || !f.exists()) return;
