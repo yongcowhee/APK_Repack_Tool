@@ -1,23 +1,22 @@
 @echo off
-chcp 65001 > nul
 setlocal enabledelayedexpansion
 
 :REPACK_LOOP
 cls
 echo ===================================================
-echo   🌼Android APK Repack Tool v3.0🌼
+echo   Android APK Repack Tool v3.0
 echo.
 echo   [Released] 26. 07. 09
-echo   [Developer] Sohee Yong ✌️
+echo   [Developer] Sohee Yong
 echo ===================================================
 echo.
 echo ===================================================
-echo ❓How to Use
+echo How to Use
 echo 사용자에게 입력할 인자를 요구하며, 해당 인자에 맞는 값을 입력합니다.
 echo 선택 입력 값은 Enter를 입력해 Skip할 수 있으며, Input APK(원본 APK) 정보가 유지됩니다.
 echo.
 echo.
-echo ✅ 필수 입력 값
+echo [필수] 필수 입력 값
 echo    [Input APK Path]  :  변경하길 원하는 원본 APK가 존재하는 경로
 echo                         ex) C:\Users\Documents\Binary\sample.apk
 echo    [Output APK Path] :  선택 1) 변경된 APK가 저장되길 원하는 경로 및 파일명, (확장자는 .apk로 자동 생성)
@@ -25,16 +24,16 @@ echo                         ex) C:\Users\repack_test
 echo                         선택 2) 파일명만 작성하는 경우, Input APK와 동일한 디렉토리에 생성됨 (확장자는 .apk로 자동 생성)
 echo                         ex) repack_test
 echo.
-echo ☑️ 선택 입력 값
+echo [선택] 선택 입력 값
 echo    [New Package Name]  [Version Code]  [Version Name]  [Min SDK]  [Target SDK]  [Max SDK]
 echo.
-echo    ‼️선택 입력 값 입력 X -> Input APK 값 유지
+echo    [주의] 선택 입력 값 입력 X -> Input APK 값 유지
 echo       ex) Input APK의 Min, Target, Max가 33 33 null일 때 아래와 같이 값을 입력하면 33 33 35로 생성됨
 echo            > Min SDK     :
 echo            > Target SDK  :
 echo            > Max SDK     : 35
 echo.
-echo ☑️ 선택(Y/N) 값
+echo [선택] 선택(Y/N) 값
 echo    [Smali]    :  APK 내부 구조 리팩토링 여부 선택 -> N 선택해도 무방함
 echo    [Proceed]  :  사용자가 입력한 전체 인자 출력되며 최종 진행 여부 선택 -> N 선택하면 작업 취소되며, 리팩토링 진행되지 않음
 echo ===================================================
