@@ -175,6 +175,8 @@ echo ---------------------------------------------------
 
 set "REPACK_JAR=%~dp0tools\repack\RepackApk.jar"
 set "BUNDLED_JAVA=%~dp0tools\java\bin\java.exe"
+set "SCRIPT_ROOT=%~dp0"
+if "!SCRIPT_ROOT:~-1!"=="\" set "SCRIPT_ROOT=!SCRIPT_ROOT:~0,-1!"
 
 if not exist "%REPACK_JAR%" (
     echo [ERROR] RepackApk.jar not found: %REPACK_JAR%
@@ -185,7 +187,7 @@ if not exist "%REPACK_JAR%" (
 set "JAVA_EXE=java"
 if exist "%BUNDLED_JAVA%" set "JAVA_EXE=%BUNDLED_JAVA%"
 
-"%JAVA_EXE%" -jar "%REPACK_JAR%" --input "%IN_APK%" --output "%OUT_APK%" --package "%NEW_PKG%" --versionCode "%V_CODE%" --versionName "%V_NAME%" --minSdk "%MIN_SDK%" --targetSdk "%TARGET_SDK%" --maxSdk "%MAX_SDK%" --scriptRoot "%~dp0" %FULL_SMALI%
+"%JAVA_EXE%" -jar "%REPACK_JAR%" --input "%IN_APK%" --output "%OUT_APK%" --package "%NEW_PKG%" --versionCode "%V_CODE%" --versionName "%V_NAME%" --minSdk "%MIN_SDK%" --targetSdk "%TARGET_SDK%" --maxSdk "%MAX_SDK%" --scriptRoot "%SCRIPT_ROOT%" %FULL_SMALI%
 
 echo.
 echo ---------------------------------------------------
