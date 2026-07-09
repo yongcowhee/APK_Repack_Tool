@@ -44,8 +44,8 @@ set "IN_APK="
 set "IN_EXT="
 set /p "IN_APK=- Input APK Path: "
 if not defined IN_APK goto INPUT_APK
-if "!IN_APK:~0,1!"=="%QM%" set "IN_APK=!IN_APK:~1!"
-if "!IN_APK:~-1!"=="%QM%" set "IN_APK=!IN_APK:~0,-1!"
+if "!IN_APK:~0,1!"=="!QM!" set "IN_APK=!IN_APK:~1!"
+if "!IN_APK:~-1!"=="!QM!" set "IN_APK=!IN_APK:~0,-1!"
 if "!IN_APK!"=="" goto INPUT_APK
 
 for %%A in ("!IN_APK!") do set "IN_APK=%%~A"
@@ -69,8 +69,8 @@ if exist "%IN_APK%\" (
 set "OUT_APK="
 set /p "OUT_APK=- Output APK Path: "
 if not defined OUT_APK goto INPUT_OUT_APK
-if "!OUT_APK:~0,1!"=="%QM%" set "OUT_APK=!OUT_APK:~1!"
-if "!OUT_APK:~-1!"=="%QM%" set "OUT_APK=!OUT_APK:~0,-1!"
+if "!OUT_APK:~0,1!"=="!QM!" set "OUT_APK=!OUT_APK:~1!"
+if "!OUT_APK:~-1!"=="!QM!" set "OUT_APK=!OUT_APK:~0,-1!"
 if "!OUT_APK!"=="" goto INPUT_OUT_APK
 
 for %%A in ("!OUT_APK!") do set "OUT_APK=%%~A"
