@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+set QM="
 
 :REPACK_LOOP
 cls
@@ -21,7 +22,7 @@ echo                         ex) C:\Users\Documents\Binary\sample.apk
 echo.
 echo    [Output APK Path] :  Option 1) Full path and filename for the new APK (.apk extension is added automatically)
 echo                         ex) C:\Users\repack_test
-echo                         Option 2) Filename only ^-> saved in the same folder as the Input APK (.apk extension is added automatically)
+echo                         Option 2) Filename only -^> saved in the same folder as the Input APK (.apk extension is added automatically)
 echo                         ex) repack_test
 echo.
 echo [Optional]
@@ -34,17 +35,21 @@ echo            ^> Target SDK  :
 echo            ^> Max SDK     : 35
 echo.
 echo [Y/N Options]
-echo    [Smali]    :  Whether to rewrite the internal package structure ^-> N is fine in most cases
-echo    [Proceed]  :  Shows all entered values before running ^-> N cancels and lets you re-enter
+echo    [Smali]    :  Whether to rewrite the internal package structure -^> N is fine in most cases
+echo    [Proceed]  :  Shows all entered values before running -^> N cancels and lets you re-enter
 echo ===================================================
 
 :INPUT_APK
 set "IN_APK="
 set "IN_EXT="
 set /p "IN_APK=- Input APK Path: "
-if "%IN_APK%"=="" goto INPUT_APK
-for %%A in ("%IN_APK%") do set "IN_APK=%%~A"
-for %%A in ("%IN_APK%") do set "IN_EXT=%%~xA"
+if not defined IN_APK goto INPUT_APK
+if "!IN_APK:~0,1!"=="%QM%" set "IN_APK=!IN_APK:~1!"
+if "!IN_APK:~-1!"=="%QM%" set "IN_APK=!IN_APK:~0,-1!"
+if "!IN_APK!"=="" goto INPUT_APK
+
+for %%A in ("!IN_APK!") do set "IN_APK=%%~A"
+for %%A in ("!IN_APK!") do set "IN_EXT=%%~xA"
 
 if /i not "%IN_EXT%"==".apk" (
     echo [ERROR] Only .apk files are allowed.
@@ -63,8 +68,12 @@ if exist "%IN_APK%\" (
 :INPUT_OUT_APK
 set "OUT_APK="
 set /p "OUT_APK=- Output APK Path: "
-if "%OUT_APK%"=="" goto INPUT_OUT_APK
-for %%A in ("%OUT_APK%") do set "OUT_APK=%%~A"
+if not defined OUT_APK goto INPUT_OUT_APK
+if "!OUT_APK:~0,1!"=="%QM%" set "OUT_APK=!OUT_APK:~1!"
+if "!OUT_APK:~-1!"=="%QM%" set "OUT_APK=!OUT_APK:~0,-1!"
+if "!OUT_APK!"=="" goto INPUT_OUT_APK
+
+for %%A in ("!OUT_APK!") do set "OUT_APK=%%~A"
 
 :INPUT_NEW_PKG
 set "NEW_PKG="
