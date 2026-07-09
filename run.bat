@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-set QM="
+set QM=^"
 
 :REPACK_LOOP
 cls
